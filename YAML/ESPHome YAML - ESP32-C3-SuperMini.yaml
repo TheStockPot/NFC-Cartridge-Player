@@ -1,0 +1,228 @@
+esphome:
+  name: cartridge-player
+  friendly_name: Cartridge Player
+  name_add_mac_suffix: true
+  comment: | 
+    NFC based cartridge player from The Stock Pot [C3 Supermini version]. 
+    This version includes buzzer feedback for various activities
+    Buzzer codes:
+    [short-long-short]: Device is Booting Up
+    [short-short-long-short-short]: WiFi is connected
+    [long-long-long-long-long]: "Find My Device" triggered from HA dsahboard
+    [long-long]: Tag inserted/detected.
+    [short-short]: Tag removed.
+    
+  project:
+    name: "the_stock_pot.cartridge_player"
+    version: "1.0.3"
+  min_version: 2025.12.4
+  on_boot:
+    # Buzzer: [short-long-short] indicates device is booting up
+    then:
+      - script.execute:
+          id: play_beep_pattern
+          pattern: "sls"
+
+substitutions:
+  # set all the pin definitions in one place
+  buzzer_pin: GPIO1
+  rc522_miso: GPIO5
+  rc522_mosi: GPIO6
+  rc522_sda: GPIO7 #ss
+  rc522_sck: GPIO4 #clk
+
+  # controls for buzzer codes
+  beep_short: 50ms
+  beep_long: 400ms
+  beep_delay: 200ms
+
+
+globals:
+  - id: last_tag_time # Global to track last tag detection time (for debounce)
+    type: unsigned long
+    restore_value: no
+    initial_value: '0'
+
+  - id: beep_pattern_str
+    type: std::string
+    restore_value: no
+
+  - id: beep_index
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+script:
+  # --- Base beep scripts ---
+  - id: beep_short
+    mode: queued
+    then:
+      - output.turn_on: buzzer_output
+      - delay: ${beep_short}
+      - output.turn_off: buzzer_output
+
+  - id: beep_long
+    mode: queued
+    then:
+      - output.turn_on: buzzer_output
+      - delay: ${beep_long}
+      - output.turn_off: buzzer_output
+
+  - id: beep_delay
+    mode: queued
+    then:
+      - delay: ${beep_delay}
+
+  # --- Public script ---
+  - id: play_beep_pattern
+    parameters:
+      pattern: string
+    mode: restart
+    then:
+      - lambda: |-
+          id(beep_pattern_str) = pattern;
+          id(beep_index) = 0;
+      - script.execute: play_beep_pattern_worker
+
+  # --- Worker script using repeat: count: ---
+  - id: play_beep_pattern_worker
+    mode: queued
+    then:
+      - repeat:
+          count: !lambda 'return id(beep_pattern_str).size();'
+          then:
+            - lambda: |-
+                char c = id(beep_pattern_str)[id(beep_index)];
+                id(beep_index)++;
+
+                if (c == 's' || c == 'S') {
+                  id(beep_short).execute();
+                } else if (c == 'l' || c == 'L') {
+                  id(beep_long).execute();
+                } else if (c == 'd' || c == 'D') {
+                  id(beep_delay).execute();
+                }
+            - delay: 80ms # gives the queue time to drain
+
+esp32:
+  variant: ESP32C3
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+
+ota:
+  platform: esphome
+
+wifi:
+  networks:
+    - ssid: "Daedalus"
+      password: "creatorofthelabyrinth"
+    - ssid: "Holt-Guest"
+      password: "youvegotweaselsonyourface"
+    - ssid: "Holt-Smart"
+      password: "notsmarthomeassistant"
+  
+  power_save_mode: none
+  output_power: 17dB
+  fast_connect: true
+
+  ap:
+    ssid: "Cartridge Player Setup"
+    password: "thestockpot"
+
+  on_connect: 
+    then:
+      - script.execute: 
+          id: play_beep_pattern
+          pattern: "ssdldss"
+
+
+captive_portal:
+
+# SPI connection for RC522
+spi:
+  clk_pin: ${rc522_sck}
+  mosi_pin: ${rc522_mosi}
+  miso_pin: ${rc522_miso}
+
+# Buzzer
+output:
+  - platform: gpio
+    pin: ${buzzer_pin}
+    id: buzzer_output
+
+# Button to manually trigger a beep
+button:
+  - platform: template
+    name: "Cartridge Player Beep"
+    id: buzzer_button
+    on_press:
+      then:
+        - script.execute:
+            id: play_beep_pattern
+            pattern: "lllll"
+
+# RC522 SPI Reader
+rc522_spi:
+  id: rc522_reader
+  cs_pin: ${rc522_sda}
+  update_interval: 250ms
+
+  on_tag:
+    then:
+      - lambda: |-
+          id(last_tag_time) = millis();
+      - logger.log:
+          format: "Cartridge detected: %s"
+          args: ['x.c_str()']
+      - text_sensor.template.publish:
+          id: last_uid
+          state: !lambda 'return x;'
+      - binary_sensor.template.publish:
+          id: tag_present
+          state: true
+      - homeassistant.event:
+          event: esphome.nfc_card_inserted
+          data:
+            uid: !lambda 'return x;'
+      - script.execute:
+          id: play_beep_pattern
+          pattern: "ldl"
+
+  on_tag_removed:
+    then:
+      - delay: 500ms
+      - lambda: |-
+          if (millis() - id(last_tag_time) > 500) {
+            ESP_LOGI("rfid", "Cartridge removed (debounced)");
+            id(last_uid).publish_state("");
+            id(tag_present).publish_state(false);
+          }
+      - if:
+          condition:
+            lambda: 'return millis() - id(last_tag_time) > 500;'
+          then:
+            - homeassistant.event:
+                event: esphome.nfc_card_removed
+                data:
+                  message: "Cartridge removed"
+      - script.execute:
+          id: play_beep_pattern
+          pattern: "ss"
+
+# Current Tag UID
+text_sensor:
+  - platform: template
+    name: "Cartridge ID"
+    id: last_uid
+    update_interval: never
+    internal: false
+
+# Whether a cartridge is inserted
+binary_sensor:
+  - platform: template
+    name: "Cartridge Present"
+    id: tag_present
