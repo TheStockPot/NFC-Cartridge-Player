@@ -14,9 +14,10 @@ Whether you're a fan of VHS-era rituals or just want a fun new way to launch aut
 
 - 🔽 **[Latest Release](https://github.com/TheStockPot/NFC-Cartridge-Player/releases/latest)**  
 - 📖 **[Blog Post](https://www.thestockpot.net/videos/cartrdgeplayer)**  
-- 📦 **[Bill of Materials](https://github.com/TheStockPot/NFC-Cartridge-Player/blob/TheStockPot-VideoRelease/BOM.md)**  
+- 📦 **[Bill of Materials](https://github.com/TheStockPot/NFC-Cartridge-Player/blob/main/BOM.md)**  
 - 🖨️ **[3D Print Files](https://www.printables.com/model/1337649-esphome-cartridge-player)**  
-- 🧠 **[ESPHome Config](https://github.com/TheStockPot/NFC-Cartridge-Player/blob/TheStockPot-VideoRelease/esphome/cartridge_player.yaml)**  
+- ⚡ **[Wiring Diagram](https://github.com/TheStockPot/NFC-Cartridge-Player/tree/main/Wiring%20Diagrams)**  
+- 🧠 **[ESPHome Config](https://github.com/TheStockPot/NFC-Cartridge-Player/tree/main/YAML)**  
 - 📺 **[Project Video](https://www.youtube.com/@TheStockPot-AU)**  
 - 🛠️ **[Assembly & Automation Tutorial](https://www.youtube.com/@TheSaucepan-AU)**
 
@@ -35,7 +36,7 @@ Whether you're a fan of VHS-era rituals or just want a fun new way to launch aut
 
 ## 🛠️ Build Your Own
 
-All components are simple and affordable, with a [Bill of Materials available here](https://github.com/TheStockPot/NFC-Cartridge-Player/blob/TheStockPot-VideoRelease/BOM.md), and a full kit available at [thestockpot.net](https://www.thestockpot.net).
+All components are simple and affordable, with a [Bill of Materials available here](https://github.com/TheStockPot/NFC-Cartridge-Player/blob/main/BOM.md), and a full kit available at [thestockpot.net](https://www.thestockpot.net).
 
 🛠️ **Assembly & programming tutorial:**  
 [▶️ Watch the tutorial video](https://www.youtube.com/@TheSaucepan-AU)
